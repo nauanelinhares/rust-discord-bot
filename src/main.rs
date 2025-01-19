@@ -25,6 +25,8 @@ use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use tracing::{error, info};
 
+// export commands
+use crate::commands::answer::*;
 use crate::commands::health::*;
 
 pub struct ShardManagerContainer;
@@ -47,7 +49,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(ping)]
+#[commands(ping, answer)]
 struct General;
 
 #[tokio::main]
@@ -80,7 +82,7 @@ async fn main() {
 
     // Create the framework
     let framework = StandardFramework::new().group(&GENERAL_GROUP);
-    framework.configure(Configuration::new().owners(owners).prefix("~"));
+    framework.configure(Configuration::new().owners(owners).prefix("!"));
 
     let intents = GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
