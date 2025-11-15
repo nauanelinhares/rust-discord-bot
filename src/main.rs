@@ -9,6 +9,7 @@
 //! ```
 #![allow(deprecated)] // We recommend migrating to poise, instead of using the standard command framework.
 mod commands;
+mod gemini;
 
 use std::collections::HashSet;
 use std::env;
