@@ -1242,6 +1242,7 @@ dependencies = [
 name = "rust-discord-bot"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "dotenv",
  "reqwest",
  "serde",
