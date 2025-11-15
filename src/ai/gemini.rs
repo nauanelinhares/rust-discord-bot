@@ -8,6 +8,7 @@ use super::provider::AIProvider;
 /// Gemini AI Provider implementation
 pub struct GeminiProvider {
     api_key: String,
+    api_url: String,
     model: String,
     client: Client,
 }
@@ -48,10 +49,11 @@ struct ResponsePart {
 }
 
 impl GeminiProvider {
-    /// Create a new Gemini provider with the given API key and model
-    pub fn new(api_key: String, model: String) -> Self {
+    /// Create a new Gemini provider with the given API key, URL and model
+    pub fn new(api_key: String, api_url: String, model: String) -> Self {
         Self {
             api_key,
+            api_url,
             model,
             client: Client::new(),
         }
@@ -63,11 +65,15 @@ impl GeminiProvider {
             AIError::ConfigurationError("GEMINI_API_KEY environment variable not set".to_string())
         })?;
 
+        let api_url = std::env::var("GEMINI_API_URL").unwrap_or_else(|_| {
+            "https://generativelanguage.googleapis.com/v1beta/models".to_string()
+        });
+
         let model = std::env::var("GEMINI_MODEL").unwrap_or_else(|_| {
             "gemini-2.5-flash".to_string()
         });
 
-        Ok(Self::new(api_key, model))
+        Ok(Self::new(api_key, api_url, model))
     }
 }
 
@@ -75,7 +81,8 @@ impl GeminiProvider {
 impl AIProvider for GeminiProvider {
     async fn generate(&self, prompt: &str) -> Result<String, AIError> {
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            "{}/{}:generateContent",
+            self.api_url.trim_end_matches('/'),
             self.model
         );
 
