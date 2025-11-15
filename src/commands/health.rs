@@ -5,8 +5,19 @@ use serenity::prelude::*;
 
 #[command]
 async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    println!("Ping command used by user '{}'", msg.author.name);
-    msg.channel_id.say(&ctx.http, "Pong!").await?;
+    println!(
+        "Ping command used by user '{}' in channel {}",
+        msg.author.name, msg.channel_id
+    );
 
-    Ok(())
+    match msg.channel_id.say(&ctx.http, "Pong!").await {
+        Ok(_) => {
+            println!("Successfully sent Pong! response");
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("Error sending message: {:?}", e);
+            Err(e.into())
+        }
+    }
 }

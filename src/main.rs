@@ -20,10 +20,11 @@ use serenity::framework::standard::Configuration;
 use serenity::framework::StandardFramework;
 use serenity::gateway::ShardManager;
 use serenity::http::Http;
+use serenity::model::channel::Message;
 use serenity::model::event::ResumedEvent;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 // export commands
 use crate::commands::answer::*;
@@ -39,12 +40,24 @@ struct Handler;
 
 #[async_trait]
 impl EventHandler for Handler {
-    async fn ready(&self, _: Context, ready: Ready) {
+    async fn ready(&self, _ctx: Context, ready: Ready) {
         info!("Connected as {}", ready.user.name);
+        info!("Bot is ready! Guilds: {}", ready.guilds.len());
     }
 
     async fn resume(&self, _: Context, _: ResumedEvent) {
         info!("Resumed");
+    }
+
+    async fn message(&self, _ctx: Context, msg: Message) {
+        if msg.guild_id.is_some() {
+            debug!(
+                "Guild message received: {} from {} in channel {}",
+                msg.content, msg.author.name, msg.channel_id
+            );
+        } else {
+            debug!("DM received: {} from {}", msg.content, msg.author.name);
+        }
     }
 }
 
@@ -82,9 +95,16 @@ async fn main() {
 
     // Create the framework
     let framework = StandardFramework::new().group(&GENERAL_GROUP);
-    framework.configure(Configuration::new().owners(owners).prefix("!"));
+    framework.configure(
+        Configuration::new()
+            .prefix("!")
+            .owners(owners)
+            .ignore_bots(true)
+            .case_insensitivity(true),
+    );
 
-    let intents = GatewayIntents::GUILD_MESSAGES
+    let intents = GatewayIntents::GUILDS
+        | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
         | GatewayIntents::MESSAGE_CONTENT;
     let mut client = Client::builder(&token, intents)
