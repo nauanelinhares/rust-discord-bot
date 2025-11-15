@@ -64,7 +64,7 @@ impl GeminiProvider {
         })?;
 
         let model = std::env::var("GEMINI_MODEL").unwrap_or_else(|_| {
-            "gemini-2.0-flash-exp".to_string()
+            "gemini-2.5-flash".to_string()
         });
 
         Ok(Self::new(api_key, model))
@@ -75,8 +75,8 @@ impl GeminiProvider {
 impl AIProvider for GeminiProvider {
     async fn generate(&self, prompt: &str) -> Result<String, AIError> {
         let url = format!(
-            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent?key={}",
-            self.model, self.api_key
+            "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent",
+            self.model
         );
 
         let request_body = GeminiRequest {
@@ -87,7 +87,14 @@ impl AIProvider for GeminiProvider {
             }],
         };
 
-        let response = self.client.post(&url).json(&request_body).send().await?;
+        let response = self
+            .client
+            .post(&url)
+            .header("x-goog-api-key", &self.api_key)
+            .header("Content-Type", "application/json")
+            .json(&request_body)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
