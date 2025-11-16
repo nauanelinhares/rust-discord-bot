@@ -8,6 +8,7 @@
 //! features = ["framework", "standard_framework"]
 //! ```
 #![allow(deprecated)] // We recommend migrating to poise, instead of using the standard command framework.
+mod ai;
 mod commands;
 
 use std::collections::HashSet;
@@ -26,6 +27,9 @@ use serenity::model::gateway::Ready;
 use serenity::prelude::*;
 use tracing::{debug, error, info};
 
+// AI provider
+use crate::ai::{AIProvider, GeminiProvider};
+
 // export commands
 use crate::commands::answer::*;
 use crate::commands::health::*;
@@ -34,6 +38,12 @@ pub struct ShardManagerContainer;
 
 impl TypeMapKey for ShardManagerContainer {
     type Value = Arc<ShardManager>;
+}
+
+pub struct AIProviderContainer;
+
+impl TypeMapKey for AIProviderContainer {
+    type Value = Arc<dyn AIProvider>;
 }
 
 struct Handler;
@@ -103,6 +113,18 @@ async fn main() {
             .case_insensitivity(true),
     );
 
+    // Initialize AI provider
+    let ai_provider = match GeminiProvider::from_env() {
+        Ok(provider) => {
+            info!("Initialized Gemini AI provider");
+            Arc::new(provider) as Arc<dyn AIProvider>
+        }
+        Err(e) => {
+            error!("Failed to initialize AI provider: {}", e);
+            panic!("Cannot start bot without AI provider");
+        }
+    };
+
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -116,6 +138,7 @@ async fn main() {
     {
         let mut data = client.data.write().await;
         data.insert::<ShardManagerContainer>(client.shard_manager.clone());
+        data.insert::<AIProviderContainer>(ai_provider);
     }
 
     let shard_manager = client.shard_manager.clone();
