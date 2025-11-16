@@ -10,6 +10,7 @@
 #![allow(deprecated)] // We recommend migrating to poise, instead of using the standard command framework.
 mod ai;
 mod commands;
+mod youtube;
 
 use std::collections::HashSet;
 use std::env;
@@ -30,9 +31,13 @@ use tracing::{debug, error, info};
 // AI provider
 use crate::ai::{AIProvider, GeminiProvider};
 
+// YouTube client
+use crate::youtube::YouTubeClient;
+
 // export commands
 use crate::commands::answer::*;
 use crate::commands::health::*;
+use crate::commands::youtube::*;
 
 pub struct ShardManagerContainer;
 
@@ -44,6 +49,12 @@ pub struct AIProviderContainer;
 
 impl TypeMapKey for AIProviderContainer {
     type Value = Arc<dyn AIProvider>;
+}
+
+pub struct YouTubeClientContainer;
+
+impl TypeMapKey for YouTubeClientContainer {
+    type Value = Arc<YouTubeClient>;
 }
 
 struct Handler;
@@ -72,7 +83,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(ping, answer)]
+#[commands(ping, answer, youtube)]
 struct General;
 
 #[tokio::main]
@@ -125,6 +136,18 @@ async fn main() {
         }
     };
 
+    // Initialize YouTube client
+    let youtube_client = match YouTubeClient::from_env() {
+        Ok(client) => {
+            info!("Initialized YouTube API client");
+            Arc::new(client)
+        }
+        Err(e) => {
+            error!("Failed to initialize YouTube client: {}", e);
+            panic!("Cannot start bot without YouTube client");
+        }
+    };
+
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_MESSAGES
         | GatewayIntents::DIRECT_MESSAGES
@@ -139,6 +162,7 @@ async fn main() {
         let mut data = client.data.write().await;
         data.insert::<ShardManagerContainer>(client.shard_manager.clone());
         data.insert::<AIProviderContainer>(ai_provider);
+        data.insert::<YouTubeClientContainer>(youtube_client);
     }
 
     let shard_manager = client.shard_manager.clone();
