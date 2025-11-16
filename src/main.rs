@@ -33,6 +33,7 @@ use crate::ai::{AIProvider, GeminiProvider};
 // export commands
 use crate::commands::answer::*;
 use crate::commands::health::*;
+use crate::commands::play_music::*;
 
 pub struct ShardManagerContainer;
 
@@ -72,7 +73,7 @@ impl EventHandler for Handler {
 }
 
 #[group]
-#[commands(ping, answer)]
+#[commands(ping, answer, play_music)]
 struct General;
 
 #[tokio::main]
