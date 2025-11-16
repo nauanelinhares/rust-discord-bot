@@ -1,5 +1,7 @@
 use serenity::all::standard::Args;
-use serenity::all::MessageBuilder;
+use serenity::all::{
+    ButtonStyle, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedFooter, CreateMessage,
+};
 use serenity::framework::standard::macros::command;
 use serenity::framework::standard::CommandResult;
 use serenity::model::prelude::*;
@@ -7,13 +9,17 @@ use serenity::prelude::*;
 
 use crate::AIProviderContainer;
 
+// Discord embed description limit
+const EMBED_DESCRIPTION_LIMIT: usize = 4096;
+const TRUNCATE_SUFFIX: &str = "\n\n... *(resposta truncada por exceder o limite)*";
+
 #[command]
 async fn answer(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
     let question = args.rest();
 
     if question.is_empty() {
         msg.channel_id
-            .say(&ctx.http, "Please ask me a question!")
+            .say(&ctx.http, "Por favor, faça uma pergunta!")
             .await?;
         return Ok(());
     }
@@ -27,27 +33,67 @@ async fn answer(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .get::<AIProviderContainer>()
         .expect("AI provider not initialized");
 
-    let answer = match provider.generate(question).await {
+    // Add synthesis instruction to help Gemini provide concise responses
+    let enhanced_question = format!(
+        "Responda de forma clara e objetiva, limitando sua resposta a aproximadamente 3000 caracteres. \
+        Se a resposta for muito longa, priorize as informações mais importantes e relevantes.\n\n\
+        Pergunta: {}",
+        question
+    );
+
+    let answer = match provider.generate(&enhanced_question).await {
         Ok(response) => response,
         Err(e) => {
             tracing::error!("Error calling AI provider ({}): {}", provider.name(), e);
             format!(
-                "Sorry, I couldn't get an answer from {}: {}",
+                "Desculpe, não consegui obter uma resposta do {}: {}",
                 provider.name(),
                 e
             )
         }
     };
 
-    let response = MessageBuilder::new()
-        .push(&msg.author.name)
-        .push(" Asked: ")
-        .push(question)
-        .push("\n\nAnswer: ")
-        .push(answer)
-        .build();
+    // Truncate answer if it exceeds Discord's embed description limit
+    let truncated_answer = if answer.len() > EMBED_DESCRIPTION_LIMIT {
+        let max_len = EMBED_DESCRIPTION_LIMIT - TRUNCATE_SUFFIX.len();
+        format!("{}{}", &answer[..max_len], TRUNCATE_SUFFIX)
+    } else {
+        answer
+    };
 
-    msg.channel_id.say(&ctx.http, response).await?;
+    // Create a beautiful embed response
+    let embed = CreateEmbed::new()
+        .title("🤖 Resposta do AI Assistant")
+        .description(&truncated_answer)
+        .color(0x5865F2) // Discord blurple color
+        .field("❓ Pergunta", question, false)
+        .field("👤 Solicitado por", msg.author.name.clone(), true)
+        .field("🔧 Powered by", provider.name(), true)
+        .footer(CreateEmbedFooter::new("Use !answer <pergunta> para fazer mais perguntas"))
+        .timestamp(Timestamp::now());
+
+    // Create interactive buttons
+    let buttons = CreateActionRow::Buttons(vec![
+        CreateButton::new("regenerate")
+            .label("🔄 Regenerar")
+            .style(ButtonStyle::Primary),
+        CreateButton::new("followup")
+            .label("➕ Pergunta Follow-up")
+            .style(ButtonStyle::Secondary),
+        CreateButton::new("share")
+            .label("📤 Compartilhar")
+            .style(ButtonStyle::Success),
+    ]);
+
+    // Send the message with embed and buttons
+    msg.channel_id
+        .send_message(
+            &ctx.http,
+            CreateMessage::new()
+                .embed(embed)
+                .components(vec![buttons]),
+        )
+        .await?;
 
     Ok(())
 }
