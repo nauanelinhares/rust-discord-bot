@@ -1,7 +1,5 @@
 use serenity::all::standard::Args;
-use serenity::all::{
-    ButtonStyle, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedFooter, CreateMessage,
-};
+use serenity::all::{CreateEmbed, CreateEmbedFooter, CreateMessage};
 use serenity::framework::standard::macros::command;
 use serenity::framework::standard::CommandResult;
 use serenity::model::prelude::*;
@@ -72,27 +70,9 @@ async fn answer(ctx: &Context, msg: &Message, args: Args) -> CommandResult {
         .footer(CreateEmbedFooter::new("Use !answer <pergunta> para fazer mais perguntas"))
         .timestamp(Timestamp::now());
 
-    // Create interactive buttons
-    let buttons = CreateActionRow::Buttons(vec![
-        CreateButton::new("regenerate")
-            .label("🔄 Regenerar")
-            .style(ButtonStyle::Primary),
-        CreateButton::new("followup")
-            .label("➕ Pergunta Follow-up")
-            .style(ButtonStyle::Secondary),
-        CreateButton::new("share")
-            .label("📤 Compartilhar")
-            .style(ButtonStyle::Success),
-    ]);
-
-    // Send the message with embed and buttons
+    // Send the message with embed
     msg.channel_id
-        .send_message(
-            &ctx.http,
-            CreateMessage::new()
-                .embed(embed)
-                .components(vec![buttons]),
-        )
+        .send_message(&ctx.http, CreateMessage::new().embed(embed))
         .await?;
 
     Ok(())
