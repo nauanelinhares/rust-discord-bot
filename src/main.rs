@@ -10,6 +10,7 @@
 #![allow(deprecated)] // We recommend migrating to poise, instead of using the standard command framework.
 mod ai;
 mod commands;
+mod search;
 
 use std::collections::HashSet;
 use std::env;
